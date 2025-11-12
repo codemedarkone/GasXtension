@@ -1,0 +1,187 @@
+# =========================
+# Unreal Engine 5 .gitignore
+# GASX Framework – Gameplay Ability System Extensions
+# =========================
+
+## OS-Specific ##
+# -------------------------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+desktop.ini
+$RECYCLE.BIN/
+
+## IDE / Build System ##
+# -------------------------
+.vscode/
+.idea/
+.vs/
+*.VC.db
+*.VC.opendb
+*.sln
+*.suo
+*.user
+*.userprefs
+*.opensdf
+*.sdf
+*.cache/
+*.pdb
+*.idb
+*.log
+*.obj
+*.tlog
+*.ipch
+*.rsp
+*.opendb
+*.db
+*.ldb
+*.sln.DotSettings.user
+*.VC.db-shm
+*.VC.db-wal
+*.vsconfig
+/out/
+.cmake/
+cmake-build-*/
+cmake-build-debug*/
+cmake-build-release*/
+
+## Unreal Engine Generated ##
+# -------------------------
+Intermediate/
+Saved/
+DerivedDataCache/
+*.VC.db
+*.VC.VC.opendb
+*.xcodeproj/
+Binaries/
+Build/Receipts/
+Build/DerivedDataCache/
+Engine/Intermediate/
+Engine/Saved/
+Engine/DerivedDataCache/
+*.target
+*.targets
+*.obj
+*.exe
+*.dll
+*.lib
+*.app
+*.ipa
+*.dSYM
+*.exp
+*.pdb
+
+# Unreal auto-generated folders
+*.Generated/
+Script/
+Makefile
+CMakeCache.txt
+CMakeFiles/
+
+## Unreal Project Specific ##
+# -------------------------
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.log
+*.tlog
+*.pdb
+*.obj
+*.ipch
+*.tmp
+*.vscode/
+*.vs/
+*.vscode/settings.json
+
+# Keep core configuration and source code
+!Config/
+!Source/
+!Content/
+
+# Ignore cooked data and derived assets
+*_BuiltData.uasset
+*_BuiltData.umap
+Cooked/
+DerivedDataCache/
+Cache/
+Collections/
+Autosaves/
+Backups/
+*.umap.autosave
+*.uasset.autosave
+*.bak
+
+## Unreal Plugins ##
+# -------------------------
+# Ignore plugin build intermediates but keep source code and descriptors
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+Plugins/*/Saved/
+Plugins/*/DerivedDataCache/
+!Plugins/*/*.uplugin
+!Plugins/*/Source/**
+
+## Build Artifacts ##
+# -------------------------
+Build/Win64/
+Build/Linux/
+Build/Mac/
+Build/Android/
+Build/IOS/
+Saved/StagedBuilds/
+Saved/Backup*/
+Saved/Logs/
+Saved/Profiling/
+
+## External Dependencies ##
+# -------------------------
+ThirdParty/*/Binaries/
+ThirdParty/*/Intermediate/
+ThirdParty/*/Lib/
+ThirdParty/*/Build/
+ThirdParty/*/obj/
+ThirdParty/*/out/
+
+## Project Binary Caches ##
+# -------------------------
+# Optional: uncomment if you want to track packaged builds
+# *.pak
+# *.sig
+
+## Editor Utility Caches ##
+# -------------------------
+DerivedDataCache/
+__pycache__/
+.vscode/
+.idea/
+
+# =========================
+# Sensitive / Local Development Files
+# =========================
+.env
+.env.*
+codex.config.yaml
+.codex.config.yaml
+config.yaml
+.envrc
+*.secret
+*.key
+*.pem
+
+# =========================
+# Documentation / Non-Source Files
+# =========================
+AGENTS.md
+*.md
+!README.md   # (optional) keep your main README if you want it versioned
+LICENSE
+CHANGELOG.md
+docs/
+documentation/
+notes/
+design/
+specs/
+
+# End of File

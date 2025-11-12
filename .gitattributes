@@ -1,0 +1,93 @@
+# =========================================================
+# Unreal Engine 5 .gitattributes
+# GASX Framework – Gameplay Ability System Extensions
+# =========================================================
+# This file controls Git's local handling of line endings
+# and binary/text normalization. It DOES NOT upload or
+# push any files — it only affects local checkout/commit.
+# =========================================================
+
+# ---------------------------------------------------------
+# Default behavior
+# ---------------------------------------------------------
+# Use Windows-style CRLF endings for all text files.
+* text eol=crlf
+
+# ---------------------------------------------------------
+# Unreal Engine binary assets (no diff / no merge)
+# ---------------------------------------------------------
+*.uasset binary
+*.umap   binary
+*.upk    binary
+*.udk    binary
+*.ubulk  binary
+*.ufont  binary
+*.umodel binary
+*.uplugin binary
+*.pak    binary
+*.sig    binary
+*.bin    binary
+*.dds    binary
+*.tga    binary
+*.jpg    binary
+*.png    binary
+*.bmp    binary
+*.wav    binary
+*.ogg    binary
+*.mp3    binary
+*.exe    binary
+*.dll    binary
+*.lib    binary
+*.pdb    binary
+
+# ---------------------------------------------------------
+# Source code (CRLF)
+# ---------------------------------------------------------
+*.h    text eol=crlf
+*.hpp  text eol=crlf
+*.cpp  text eol=crlf
+*.cs   text eol=crlf
+*.py   text eol=crlf
+*.ps1  text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# ---------------------------------------------------------
+# Scripts and shell utilities
+# ---------------------------------------------------------
+# Keep Linux/macOS shell scripts LF to avoid exec errors.
+*.sh   text eol=lf
+
+# ---------------------------------------------------------
+# Config / Data files (CRLF)
+# ---------------------------------------------------------
+*.ini   text eol=crlf
+*.cfg   text eol=crlf
+*.json  text eol=crlf
+*.yaml  text eol=crlf
+*.yml   text eol=crlf
+*.xml   text eol=crlf
+
+# ---------------------------------------------------------
+# Documentation (CRLF)
+# ---------------------------------------------------------
+*.txt text eol=crlf
+*.md  text eol=crlf
+*.log text eol=crlf
+
+# ---------------------------------------------------------
+# Unreal project folders
+# ---------------------------------------------------------
+Config/*.ini text eol=crlf
+Scripts/*.bat text eol=crlf
+Scripts/*.ps1 text eol=crlf
+
+# ---------------------------------------------------------
+# Optional: prevent diffs on large binary logs
+# ---------------------------------------------------------
+*.dmp binary
+*.zip binary
+*.7z  binary
+
+# End of File
+# =========================================================
