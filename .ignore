@@ -1,4 +1,10 @@
+/.git
 /.vscode
 /Content
+/DerivedDataCache
 /Intermediate
 /Saved
+/Plugins/GasX/Content
+/Plugins/GasX/Docs
+/Plugins/GasX/Intermediate
+/Plugins/GasX/Schemas
