@@ -11,12 +11,14 @@ public class GasXEditor : ModuleRules
             "Core", "CoreUObject", "Engine",
             "GameplayAbilities", "GameplayTags",
             "GameFeatures", "ModularGameplay",
-            "UnrealEd", "AssetTools", "Slate", "SlateCore"
+            "UnrealEd", "AssetTools", "Slate", "SlateCore",
+            "GasXRuntime"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]
         {
-            "EditorFramework", "Kismet", "InputCore"
+            "EditorFramework", "Kismet", "InputCore",
+            "Json", "JsonUtilities"
         });
     }
 }
