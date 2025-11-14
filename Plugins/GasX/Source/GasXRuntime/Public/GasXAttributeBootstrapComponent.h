@@ -49,7 +49,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "GasX|Init")
 	bool bUseInitStatsDataTable = false;
 
+#if WITH_AUTOMATION_TESTS
+public:
+	/** Test helper so automation can inject attribute set classes without editor setup. */
+	void TestAddAttributeSetType(TSubclassOf<UAttributeSet> AttributeSetClass)
+	{
+		if (AttributeSetClass)
+		{
+			AttributeSetTypes.Add(TSoftClassPtr<UAttributeSet>(AttributeSetClass.Get()));
+		}
+	}
+
+	/** Execute the BeginPlay initialization directly in automation environments. */
+	void RunBootstrapForTests()
+	{
+		ExecuteBootstrap();
+	}
+#endif
+
 private:
+	void ExecuteBootstrap();
 	/** Check if the ASC already contains an instance of AttributeSetClass. Prevents duplicates. */
 	bool HasAttributeSet(UAbilitySystemComponent* ASC, TSubclassOf<UAttributeSet> AttributeSetClass) const;
 

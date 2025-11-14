@@ -19,7 +19,11 @@ UGasXAttributeBootstrapComponent::UGasXAttributeBootstrapComponent()
 void UGasXAttributeBootstrapComponent::BeginPlay()
 {
     Super::BeginPlay();
+    ExecuteBootstrap();
+}
 
+void UGasXAttributeBootstrapComponent::ExecuteBootstrap()
+{
     AActor* Owner = GetOwner();
     if (!Owner)
     {
