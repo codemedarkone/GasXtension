@@ -1,8 +1,8 @@
 {
-  "AttributeSetClassName": "PlayerCoreAttributes",
+  "AttributeSetClassName": "PrimaryAttributes",
   "TargetModule": "GasXRuntime",
   "TargetDirectory": "Public/Attributes",
-  "Description": "Core player attributes: Health, Stamina, and Mana",
+  "Description": "Core player attributes: Health  and Mana",
   "bGenerateInitGameplayEffect": true,
   "bGenerateMetadataTable": true,
   "Attributes": [
@@ -25,16 +25,6 @@
       "bReplicates": true,
       "bRepNotify": true,
       "Description": "Maximum health capacity"
-    },
-    {
-      "AttributeName": "Stamina",
-      "AttributeType": "float",
-      "DefaultValue": 100.0,
-      "MinValue": 0.0,
-      "MaxValue": 100.0,
-      "bReplicates": true,
-      "bRepNotify": true,
-      "Description": "Current stamina points for sprint/dodge actions"
     },
     {
       "AttributeName": "Mana",
