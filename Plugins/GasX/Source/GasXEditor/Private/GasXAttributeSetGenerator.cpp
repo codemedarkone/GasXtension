@@ -35,13 +35,17 @@ bool FGasXAttributeSetGenerator::GenerateAttributeSet(
 	FString HeaderContent = GenerateHeaderContent(Schema);
 	FString SourceContent = GenerateSourceContent(Schema);
 
-	if (!FFileHelper::SaveStringToFile(HeaderContent, *OutputHeaderPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+	// WHY: Merge with existing files to preserve custom code outside guarded regions
+	FString FinalHeaderContent = MergeWithExistingFile(OutputHeaderPath, HeaderContent);
+	FString FinalSourceContent = MergeWithExistingFile(OutputSourcePath, SourceContent);
+
+	if (!FFileHelper::SaveStringToFile(FinalHeaderContent, *OutputHeaderPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
 		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Failed to write header file: %s"), *OutputHeaderPath);
 		return false;
 	}
 
-	if (!FFileHelper::SaveStringToFile(SourceContent, *OutputSourcePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
+	if (!FFileHelper::SaveStringToFile(FinalSourceContent, *OutputSourcePath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{
 		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Failed to write source file: %s"), *OutputSourcePath);
 		return false;
@@ -329,4 +333,111 @@ bool FGasXAttributeSetGenerator::IsValidIdentifier(const FString &Name) const
 	}
 
 	return true;
+}
+
+FString FGasXAttributeSetGenerator::MergeWithExistingFile(const FString &FilePath, const FString &NewGeneratedContent) const
+{
+	// WHY: If file doesn't exist, this is first generation - use new content as-is
+	if (!FPaths::FileExists(FilePath))
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("Creating new file: %s"), *FilePath);
+		return NewGeneratedContent;
+	}
+
+	FString ExistingContent;
+	if (!FFileHelper::LoadFileToString(ExistingContent, *FilePath))
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Warning, TEXT("Could not read existing file: %s. Using new content."), *FilePath);
+		return NewGeneratedContent;
+	}
+
+	UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("Merging with existing file: %s"), *FilePath);
+
+	// Start from the existing file so custom code outside guarded regions stays untouched
+	return ReplaceGuardedRegions(ExistingContent, NewGeneratedContent);
+}
+
+FString FGasXAttributeSetGenerator::ReplaceGuardedRegions(const FString &ExistingContent, const FString &NewContent) const
+{
+	// WHY: Preserve developer code outside guarded regions by editing the existing file in-place.
+	FString Result = ExistingContent;
+	struct FGuardBlock
+	{
+		FString Name;
+		FString BlockText;
+	};
+
+	TArray<FGuardBlock> NewBlocks;
+	const FString BeginSignature = TEXT("//GEN-BEGIN:");
+	int32 SearchPosition = 0;
+
+	while (SearchPosition < NewContent.Len())
+	{
+		const int32 BeginIndex = NewContent.Find(BeginSignature, ESearchCase::CaseSensitive, ESearchDir::FromStart, SearchPosition);
+		if (BeginIndex == INDEX_NONE)
+		{
+			break;
+		}
+
+		const int32 BeginLineEnd = NewContent.Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromStart, BeginIndex);
+		const int32 SafeBeginLineEnd = BeginLineEnd == INDEX_NONE ? NewContent.Len() : BeginLineEnd + 1;
+
+		FString RegionName = NewContent.Mid(BeginIndex + BeginSignature.Len(), SafeBeginLineEnd - (BeginIndex + BeginSignature.Len()));
+		RegionName = RegionName.TrimStartAndEnd();
+
+		const FString EndMarker = FString::Printf(TEXT("//GEN-END: %s"), *RegionName);
+		const int32 EndIndex = NewContent.Find(EndMarker, ESearchCase::CaseSensitive, ESearchDir::FromStart, SafeBeginLineEnd);
+		if (EndIndex == INDEX_NONE)
+		{
+			break;
+		}
+
+		const int32 EndLineEnd = NewContent.Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromStart, EndIndex);
+		const int32 SafeEndLineEnd = EndLineEnd == INDEX_NONE ? NewContent.Len() : EndLineEnd + 1;
+
+		NewBlocks.Add({RegionName, NewContent.Mid(BeginIndex, SafeEndLineEnd - BeginIndex)});
+		SearchPosition = SafeEndLineEnd;
+	}
+
+	if (NewBlocks.Num() == 0)
+	{
+		return NewContent;
+	}
+
+	bool bModified = false;
+
+	for (const FGuardBlock& Block : NewBlocks)
+	{
+		const FString BeginNeedle = FString::Printf(TEXT("GEN-BEGIN: %s"), *Block.Name);
+		const FString EndNeedle = FString::Printf(TEXT("GEN-END: %s"), *Block.Name);
+
+		const int32 BeginNeedleIndex = Result.Find(BeginNeedle, ESearchCase::CaseSensitive);
+		if (BeginNeedleIndex == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const int32 BlockStartLine = [&Result](int32 Index)
+		{
+			const int32 PrevNewline = Result.Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromEnd, Index);
+			return PrevNewline == INDEX_NONE ? 0 : PrevNewline + 1;
+		}(BeginNeedleIndex);
+
+		const int32 EndNeedleIndex = Result.Find(EndNeedle, ESearchCase::CaseSensitive, ESearchDir::FromStart, BeginNeedleIndex);
+		if (EndNeedleIndex == INDEX_NONE)
+		{
+			continue;
+		}
+
+		const int32 BlockEndLine = [&Result](int32 Index)
+		{
+			int32 NextNewline = Result.Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Index);
+			return NextNewline == INDEX_NONE ? Result.Len() : NextNewline + 1;
+		}(EndNeedleIndex);
+
+		Result = Result.Left(BlockStartLine) + Block.BlockText + Result.Mid(BlockEndLine);
+		bModified = true;
+	}
+
+	return Result;
 }

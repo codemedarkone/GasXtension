@@ -6,7 +6,7 @@
 
 UPlayerCoreAttributes::UPlayerCoreAttributes()
 {
-	//GEN-BEGIN: Constructor Initialization
+//GEN-BEGIN: Constructor Initialization
 	Health.SetBaseValue(100.00f);
 	Health.SetCurrentValue(100.00f);
 	MaxHealth.SetBaseValue(100.00f);
@@ -15,8 +15,12 @@ UPlayerCoreAttributes::UPlayerCoreAttributes()
 	Stamina.SetCurrentValue(100.00f);
 	Mana.SetBaseValue(50.00f);
 	Mana.SetCurrentValue(50.00f);
+	Energy.SetBaseValue(50.00f);
+	Energy.SetCurrentValue(50.00f);
 	//GEN-END: Constructor Initialization
 }
+
+int cppTestOutside1 = 2; // Should be preserved
 
 //GEN-BEGIN: OnRep Implementations
 void UPlayerCoreAttributes::OnRep_Health(const FGameplayAttributeData& OldValue)
@@ -39,16 +43,24 @@ void UPlayerCoreAttributes::OnRep_Mana(const FGameplayAttributeData& OldValue)
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UPlayerCoreAttributes, Mana, OldValue);
 }
 
+void UPlayerCoreAttributes::OnRep_Energy(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UPlayerCoreAttributes, Energy, OldValue);
+}
+
 //GEN-END: OnRep Implementations
 
-void UPlayerCoreAttributes::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+int cppTestOutside2 = 4; // Should be preserved
+
+void UPlayerCoreAttributes::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	//GEN-BEGIN: Replication Setup
+//GEN-BEGIN: Replication Setup
 	DOREPLIFETIME_CONDITION_NOTIFY(UPlayerCoreAttributes, Health, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPlayerCoreAttributes, MaxHealth, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPlayerCoreAttributes, Stamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UPlayerCoreAttributes, Mana, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UPlayerCoreAttributes, Energy, COND_None, REPNOTIFY_Always);
 	//GEN-END: Replication Setup
 }

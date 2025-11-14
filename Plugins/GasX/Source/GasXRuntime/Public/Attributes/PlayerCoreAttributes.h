@@ -20,7 +20,7 @@ class GASXRUNTIME_API UPlayerCoreAttributes : public UAttributeSet
 public:
 	UPlayerCoreAttributes();
 
-	//GEN-BEGIN: Attribute Properties
+//GEN-BEGIN: Attribute Properties
 	/** Current health points */
 	UPROPERTY(BlueprintReadOnly, Category="Attributes", ReplicatedUsing=OnRep_Health)
 	FGameplayAttributeData Health;
@@ -37,9 +37,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="Attributes", ReplicatedUsing=OnRep_Mana)
 	FGameplayAttributeData Mana;
 
+	/** Current energy for abilities */
+	UPROPERTY(BlueprintReadOnly, Category="Attributes", ReplicatedUsing=OnRep_Energy)
+	FGameplayAttributeData Energy;
+
 	//GEN-END: Attribute Properties
 
-	//GEN-BEGIN: Attribute Accessors
+//GEN-BEGIN: Attribute Accessors
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(UPlayerCoreAttributes, Health)
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(Health)
 	GAMEPLAYATTRIBUTE_VALUE_SETTER(Health)
@@ -60,9 +64,14 @@ public:
 	GAMEPLAYATTRIBUTE_VALUE_SETTER(Mana)
 	GAMEPLAYATTRIBUTE_VALUE_INITTER(Mana)
 
+	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(UPlayerCoreAttributes, Energy)
+	GAMEPLAYATTRIBUTE_VALUE_GETTER(Energy)
+	GAMEPLAYATTRIBUTE_VALUE_SETTER(Energy)
+	GAMEPLAYATTRIBUTE_VALUE_INITTER(Energy)
+
 	//GEN-END: Attribute Accessors
 
-	//GEN-BEGIN: OnRep Functions
+//GEN-BEGIN: OnRep Functions
 	UFUNCTION()
 	virtual void OnRep_Health(const FGameplayAttributeData& OldValue);
 
@@ -75,7 +84,10 @@ public:
 	UFUNCTION()
 	virtual void OnRep_Mana(const FGameplayAttributeData& OldValue);
 
+	UFUNCTION()
+	virtual void OnRep_Energy(const FGameplayAttributeData& OldValue);
+
 	//GEN-END: OnRep Functions
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 };

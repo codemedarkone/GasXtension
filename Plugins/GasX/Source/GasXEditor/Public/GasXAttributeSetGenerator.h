@@ -85,4 +85,16 @@ private:
 	 * Check if a name is a valid C++ identifier.
 	 */
 	bool IsValidIdentifier(const FString& Name) const;
+
+	/**
+	 * Merge new generated content with existing file while preserving custom code outside guarded regions.
+	 * WHY: Allows incremental regeneration without losing developer customizations.
+	 */
+	FString MergeWithExistingFile(const FString& FilePath, const FString& NewGeneratedContent) const;
+
+	/**
+	 * Replace guarded regions inside the existing file with the freshly generated versions.
+	 * WHY: Preserve developer code outside guarded regions while still updating generated blocks.
+	 */
+	FString ReplaceGuardedRegions(const FString& ExistingContent, const FString& NewContent) const;
 };

@@ -45,6 +45,16 @@
       "bReplicates": true,
       "bRepNotify": true,
       "Description": "Current mana for abilities"
+    },
+    {
+      "AttributeName": "Energy",
+      "AttributeType": "float",
+      "DefaultValue": 50.0,
+      "MinValue": 0.0,
+      "MaxValue": 100.0,
+      "bReplicates": true,
+      "bRepNotify": true,
+      "Description": "Current energy for abilities"
     }
   ]
 }
