@@ -19,7 +19,11 @@ UGasXAttributeBootstrapComponent::UGasXAttributeBootstrapComponent()
 void UGasXAttributeBootstrapComponent::BeginPlay()
 {
     Super::BeginPlay();
+    ExecuteBootstrap();
+}
 
+void UGasXAttributeBootstrapComponent::ExecuteBootstrap()
+{
     AActor* Owner = GetOwner();
     if (!Owner)
     {
@@ -27,12 +31,15 @@ void UGasXAttributeBootstrapComponent::BeginPlay()
         return;
     }
 
-    // Server-only initialization
+    // WHY: All AttributeSet instantiation must occur server-side to prevent replication conflicts
+    // Clients receive AttributeSet data via replication from the server's spawned instances
     if (!Owner->HasAuthority())
     {
-        UE_LOG(LogGASInit, Verbose, TEXT("Skipping attribute init on client for %s"), *Owner->GetName());
+        UE_LOG(LogGASInit, Verbose, TEXT("[CLIENT] Skipping attribute init on client for %s"), *Owner->GetName());
         return;
     }
+    
+    UE_LOG(LogGASInit, Log, TEXT("[SERVER] ExecuteBootstrap for %s"), *Owner->GetName());
 
     UAbilitySystemComponent* ASC = Owner->FindComponentByClass<UAbilitySystemComponent>();
     if (!ASC)
@@ -57,9 +64,11 @@ void UGasXAttributeBootstrapComponent::BeginPlay()
             continue;
         }
 
+        // WHY: Check for existing AttributeSet instance to ensure idempotency
+        // Prevents duplicate AttributeSets on PIE restart, Game Feature re-activation, or respawn
         if (HasAttributeSet(ASC, SetClass))
         {
-            UE_LOG(LogGASInit, Verbose, TEXT("AttributeSet %s already present on %s"), *SetClass->GetName(), *Owner->GetName());
+            UE_LOG(LogGASInit, Log, TEXT("[SERVER] AttributeSet %s already present on %s - skipping duplicate"), *SetClass->GetName(), *Owner->GetName());
             continue;
         }
 
@@ -89,15 +98,19 @@ void UGasXAttributeBootstrapComponent::BeginPlay()
 
 bool UGasXAttributeBootstrapComponent::HasAttributeSet(UAbilitySystemComponent* ASC, TSubclassOf<UAttributeSet> AttributeSetClass) const
 {
+    // WHY: Must prevent duplicate AttributeSets by checking ASC's spawned attributes array
+    // Iterates GetSpawnedAttributes() and compares by class to ensure idempotency
+    // Required by Requirements.md R14 and Priority Adjustments 1.1
     if (!ASC || !AttributeSetClass)
     {
         return false;
     }
 
-    const TArray<UAttributeSet*>& Spawned = ASC->GetSpawnedAttributes();
-    for (UAttributeSet* Set : Spawned)
+    // WHAT: Iterate all spawned attribute sets and check for exact class match
+    const TArray<UAttributeSet*>& SpawnedAttributes = ASC->GetSpawnedAttributes();
+    for (UAttributeSet* ExistingSet : SpawnedAttributes)
     {
-        if (Set && Set->IsA(AttributeSetClass))
+        if (ExistingSet && ExistingSet->GetClass() == AttributeSetClass)
         {
             return true;
         }
@@ -113,10 +126,19 @@ void UGasXAttributeBootstrapComponent::InitializeAttributes(UAbilitySystemCompon
         return;
     }
 
+    // WHY: Attribute initialization must only occur on the server to prevent replication conflicts
+    // All Init paths (DataTable, GameplayEffect) modify attribute values and must be authority-only
+    AActor* Owner = GetOwner();
+    if (!Owner || !Owner->HasAuthority())
+    {
+        UE_LOG(LogGASInit, Verbose, TEXT("Skipping InitializeAttributes on client for %s"), Owner ? *Owner->GetName() : TEXT("null owner"));
+        return;
+    }
+
     // If DataTable init is requested, enumerate rows (MVP). Detailed mapping is handled by generator-generated code later.
     if (bUseInitStatsDataTable && AttributeMetadataTable)
     {
-        UE_LOG(LogGASInit, Log, TEXT("Applying AttributeMetadataTable initialization (MVP - enumerating rows)."));
+        UE_LOG(LogGASInit, Log, TEXT("[SERVER] Applying AttributeMetadataTable initialization for %s"), *Owner->GetName());
         TArray<FName> RowNames = AttributeMetadataTable->GetRowNames();
         for (const FName& RowName : RowNames)
         {
@@ -127,7 +149,7 @@ void UGasXAttributeBootstrapComponent::InitializeAttributes(UAbilitySystemCompon
     // If InitGameplayEffect is requested and available, use it
     if (bUseInitGameplayEffect && InitGameplayEffect)
     {
-        UE_LOG(LogGASInit, Log, TEXT("Applying InitGameplayEffect to ASC."));
+        UE_LOG(LogGASInit, Log, TEXT("[SERVER] Applying InitGameplayEffect to %s"), *Owner->GetName());
         FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
         FGameplayEffectSpecHandle SpecHandle = ASC->MakeOutgoingSpec(InitGameplayEffect, 1.0f, Context);
         if (SpecHandle.IsValid() && SpecHandle.Data.IsValid())

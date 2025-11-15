@@ -12,5 +12,11 @@ public class GasXRuntime : ModuleRules
             "GameplayAbilities", "GameplayTags",
             "GameFeatures", "ModularGameplay"
         });
+
+        // WHY: Enable automation tests in Development builds for editor testing
+        if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+        {
+            PublicDefinitions.Add("WITH_AUTOMATION_TESTS=1");
+        }
     }
 }

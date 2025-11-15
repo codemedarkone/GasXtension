@@ -97,4 +97,24 @@ private:
 	 * WHY: Preserve developer code outside guarded regions while still updating generated blocks.
 	 */
 	FString ReplaceGuardedRegions(const FString& ExistingContent, const FString& NewContent) const;
+
+	/**
+	 * Generate a UDataTable asset containing metadata rows for each attribute in the schema.
+	 * WHY: Enables designers to adjust default values, min/max, and descriptions without touching C++ or JSON.
+	 * 
+	 * @param Schema The attribute definition schema
+	 * @param OutputAssetPath Full content path where the DataTable asset should be created (e.g. /Game/Generated/Attributes/PlayerCoreMetadata)
+	 * @return true if DataTable creation succeeded; false on error
+	 */
+	bool GenerateMetadataTable(const FGasXAttributeSetSchema& Schema, const FString& OutputAssetPath);
+
+	/**
+	 * Generate a UGameplayEffect asset for initializing attributes with values from the schema or DataTable.
+	 * WHY: Provides data-driven attribute initialization compatible with GasXBootstrap toggle system.
+	 * 
+	 * @param Schema The attribute definition schema
+	 * @param OutputAssetPath Full content path where the GameplayEffect asset should be created (e.g. /Game/Generated/Attributes/GE_InitPlayerCore)
+	 * @return true if GameplayEffect creation succeeded; false on error
+	 */
+	bool GenerateInitGameplayEffect(const FGasXAttributeSetSchema& Schema, const FString& OutputAssetPath);
 };

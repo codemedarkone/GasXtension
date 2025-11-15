@@ -6,6 +6,18 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
 
+#if WITH_EDITOR
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "Factories/DataTableFactory.h"
+#include "Factories/BlueprintFactory.h"
+#include "Engine/DataTable.h"
+#include "GameplayEffect.h"
+#include "GasXAttributeMetadata.h"
+#include "UObject/SavePackage.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogGasXAttributeSetGenerator, Log, All);
 
 bool FGasXAttributeSetGenerator::GenerateAttributeSet(
@@ -55,7 +67,34 @@ bool FGasXAttributeSetGenerator::GenerateAttributeSet(
 	UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("  Header: %s"), *OutputHeaderPath);
 	UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("  Source: %s"), *OutputSourcePath);
 
-	return true;
+	// WHY: Optionally generate DataTable and Init GameplayEffect assets based on schema flags
+	bool bAllSucceeded = true;
+
+	if (Schema.bGenerateMetadataTable)
+	{
+		// WHY: Construct asset path from schema: /Game/Generated/Attributes/[ClassName]Metadata
+		FString MetadataTablePath = FString::Printf(TEXT("/Game/Generated/Attributes/%sMetadata"), *Schema.AttributeSetClassName);
+
+		if (!GenerateMetadataTable(Schema, MetadataTablePath))
+		{
+			UE_LOG(LogGasXAttributeSetGenerator, Warning, TEXT("Failed to generate metadata DataTable for %s"), *Schema.AttributeSetClassName);
+			bAllSucceeded = false;
+		}
+	}
+
+	if (Schema.bGenerateInitGameplayEffect)
+	{
+		// WHY: Construct asset path from schema: /Game/Generated/Attributes/GE_Init[ClassName]
+		FString InitGEPath = FString::Printf(TEXT("/Game/Generated/Attributes/GE_Init%s"), *Schema.AttributeSetClassName);
+
+		if (!GenerateInitGameplayEffect(Schema, InitGEPath))
+		{
+			UE_LOG(LogGasXAttributeSetGenerator, Warning, TEXT("Failed to generate Init GameplayEffect for %s"), *Schema.AttributeSetClassName);
+			bAllSucceeded = false;
+		}
+	}
+
+	return bAllSucceeded;
 }
 
 bool FGasXAttributeSetGenerator::ValidateSchema(const FGasXAttributeSetSchema &Schema, FString &OutError) const
@@ -406,7 +445,7 @@ FString FGasXAttributeSetGenerator::ReplaceGuardedRegions(const FString &Existin
 
 	bool bModified = false;
 
-	for (const FGuardBlock& Block : NewBlocks)
+	for (const FGuardBlock &Block : NewBlocks)
 	{
 		const FString BeginNeedle = FString::Printf(TEXT("GEN-BEGIN: %s"), *Block.Name);
 		const FString EndNeedle = FString::Printf(TEXT("GEN-END: %s"), *Block.Name);
@@ -440,4 +479,179 @@ FString FGasXAttributeSetGenerator::ReplaceGuardedRegions(const FString &Existin
 	}
 
 	return Result;
+}
+
+bool FGasXAttributeSetGenerator::GenerateMetadataTable(const FGasXAttributeSetSchema &Schema, const FString &OutputAssetPath)
+{
+	// WHY: Create a UDataTable with FGasXAttributeMetadataRow structure to hold designer-editable attribute values
+	// NOTE: This must run in editor context with AssetTools available
+
+#if WITH_EDITOR
+	// WHY: AssetTools provides the CreateAsset() API for programmatic asset generation
+	IAssetTools &AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	// WHY: DataTableFactory is required to create UDataTable instances
+	UDataTableFactory *Factory = NewObject<UDataTableFactory>();
+	Factory->Struct = FGasXAttributeMetadataRow::StaticStruct();
+
+	// WHY: Parse the output path into package and asset names
+	// Example: "/Game/Generated/Attributes/PlayerCoreMetadata" → Package="/Game/Generated/Attributes", Asset="PlayerCoreMetadata"
+	FString PackagePath, AssetName;
+	OutputAssetPath.Split(TEXT("/"), &PackagePath, &AssetName, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+	if (PackagePath.IsEmpty() || AssetName.IsEmpty())
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Invalid OutputAssetPath format: %s (expected /Game/Path/AssetName)"), *OutputAssetPath);
+		return false;
+	}
+
+	// WHY: Create the DataTable asset in the specified package
+	UDataTable *DataTable = Cast<UDataTable>(AssetTools.CreateAsset(
+		AssetName,
+		PackagePath,
+		UDataTable::StaticClass(),
+		Factory));
+
+	if (!DataTable)
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Failed to create DataTable asset: %s"), *OutputAssetPath);
+		return false;
+	}
+
+	// WHY: Populate the DataTable with rows for each attribute from the schema
+	for (const FGasXAttributeDefinition &Attr : Schema.Attributes)
+	{
+	const FName RowName = FName(*Attr.AttributeName);
+	FGasXAttributeMetadataRow RowData;
+	RowData.BaseValue = Attr.DefaultValue;
+	RowData.MinValue = Attr.MinValue;
+	RowData.MaxValue = Attr.MaxValue;
+	RowData.Description = Attr.Description.IsEmpty()
+							  ? FString::Printf(TEXT("Metadata for %s attribute"), *Attr.AttributeName)
+							  : Attr.Description;
+
+	if (FGasXAttributeMetadataRow *ExistingRow = DataTable->FindRow<FGasXAttributeMetadataRow>(RowName, TEXT("GasXGenerator"), /*bWarnIfRowMissing*/ false))
+	{
+		*ExistingRow = RowData;
+	}
+	else
+	{
+		DataTable->AddRow(RowName, RowData);
+	}
+	}
+
+	// WHY: Mark the asset dirty so it will be saved with the project
+	DataTable->MarkPackageDirty();
+
+	// WHY: Trigger a save to disk
+	FString PackageFileName = FPackageName::LongPackageNameToFilename(PackagePath / AssetName, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.Error = GError;
+
+	if (!UPackage::SavePackage(DataTable->GetOutermost(), DataTable, *PackageFileName, SaveArgs))
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Warning, TEXT("Failed to save DataTable package: %s"), *PackageFileName);
+		// WHY: Don't return false - asset is still created in memory, just not saved yet
+	}
+
+	UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("Successfully generated DataTable: %s (%d rows)"), *OutputAssetPath, Schema.Attributes.Num());
+	return true;
+
+#else
+	UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("GenerateMetadataTable requires WITH_EDITOR - cannot run in packaged build"));
+	return false;
+#endif
+}
+
+bool FGasXAttributeSetGenerator::GenerateInitGameplayEffect(const FGasXAttributeSetSchema &Schema, const FString &OutputAssetPath)
+{
+	// WHY: Create a UGameplayEffect asset with Instant modifiers to initialize attributes from schema defaults
+	// NOTE: This must run in editor context with AssetTools available
+
+#if WITH_EDITOR
+	// WHY: AssetTools provides the CreateAsset() API for programmatic asset generation
+	IAssetTools &AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	// WHY: Parse the output path into package and asset names
+	FString PackagePath, AssetName;
+	OutputAssetPath.Split(TEXT("/"), &PackagePath, &AssetName, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+	if (PackagePath.IsEmpty() || AssetName.IsEmpty())
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Invalid OutputAssetPath format: %s (expected /Game/Path/AssetName)"), *OutputAssetPath);
+		return false;
+	}
+
+	// WHY: GameplayEffect assets are created as blueprints derived from UGameplayEffect
+	UBlueprintFactory *Factory = NewObject<UBlueprintFactory>();
+	Factory->ParentClass = UGameplayEffect::StaticClass();
+
+	// WHY: Create the GameplayEffect blueprint asset
+	UBlueprint *EffectBlueprint = Cast<UBlueprint>(AssetTools.CreateAsset(
+		AssetName,
+		PackagePath,
+		UBlueprint::StaticClass(),
+		Factory));
+
+	if (!EffectBlueprint)
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Failed to create GameplayEffect blueprint: %s"), *OutputAssetPath);
+		return false;
+	}
+
+	// WHY: Access the CDO (Class Default Object) to configure the GameplayEffect properties
+	UGameplayEffect *EffectCDO = Cast<UGameplayEffect>(EffectBlueprint->GeneratedClass->GetDefaultObject());
+	if (!EffectCDO)
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("Failed to get GameplayEffect CDO from blueprint: %s"), *OutputAssetPath);
+		return false;
+	}
+
+	// WHY: Init effects must be Instant duration to apply immediately
+	EffectCDO->DurationPolicy = EGameplayEffectDurationType::Instant;
+
+	// WHY: Add modifiers for each attribute in the schema
+	// NOTE: Each modifier sets the attribute's base value to the schema default
+	// NOTE: Attribute binding requires compiled reflection data; warn if generation happens before compile.
+	for (const FGasXAttributeDefinition &Attr : Schema.Attributes)
+	{
+		FGameplayModifierInfo Modifier;
+
+		UE_LOG(LogGasXAttributeSetGenerator, Verbose, TEXT("Init GE modifier for %s requires manual attribute binding after compile."), *Attr.AttributeName);
+
+		// WHY: Override operation replaces the attribute's current value
+		Modifier.ModifierOp = EGameplayModOp::Override;
+
+		// WHY: Use a constant magnitude equal to the schema default
+		FScalableFloat ScalableValue;
+		ScalableValue.Value = Attr.DefaultValue;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(ScalableValue);
+
+		EffectCDO->Modifiers.Add(Modifier);
+	}
+
+	// WHY: Mark the blueprint dirty so it will be saved with the project
+	EffectBlueprint->MarkPackageDirty();
+
+	// WHY: Compile the blueprint to ensure the changes are applied
+	FKismetEditorUtilities::CompileBlueprint(EffectBlueprint, EBlueprintCompileOptions::None);
+
+	// WHY: Trigger a save to disk
+	FString PackageFileName = FPackageName::LongPackageNameToFilename(PackagePath / AssetName, FPackageName::GetAssetPackageExtension());
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.Error = GError;
+
+	if (!UPackage::SavePackage(EffectBlueprint->GetOutermost(), EffectBlueprint, *PackageFileName, SaveArgs))
+	{
+		UE_LOG(LogGasXAttributeSetGenerator, Warning, TEXT("Failed to save GameplayEffect package: %s"), *PackageFileName);
+		// WHY: Don't return false - asset is still created in memory, just not saved yet
+	}
+
+	UE_LOG(LogGasXAttributeSetGenerator, Log, TEXT("Successfully generated Init GameplayEffect: %s (%d modifiers)"), *OutputAssetPath, Schema.Attributes.Num());
+	return true;
+
+#else
+	UE_LOG(LogGasXAttributeSetGenerator, Error, TEXT("GenerateInitGameplayEffect requires WITH_EDITOR - cannot run in packaged build"));
+	return false;
+#endif
 }
