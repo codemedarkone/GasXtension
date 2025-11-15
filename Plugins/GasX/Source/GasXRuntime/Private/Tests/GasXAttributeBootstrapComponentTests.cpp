@@ -3,6 +3,7 @@
 #include "GasXAttributeBootstrapComponent.h"
 #include "AbilitySystemComponent.h"
 #include "Attributes/PlayerCoreAttributes.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
@@ -14,19 +15,19 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 
 bool FGasXBootstrapAddsPlayerCoreAttributesTest::RunTest(const FString& Parameters)
 {
+	// WHY: Follow Epic's pattern for GAS tests - use CreateNewWorldContext
+	// Creates a minimal game world for testing without full initialization overhead
 	UWorld* World = UWorld::CreateWorld(EWorldType::Game, false);
 	if (!TestNotNull(TEXT("Created transient world"), World))
 	{
 		return false;
 	}
 
-	World->AddToRoot();
-	World->InitializeNewWorld(UWorld::InitializationValues()
-	                              .AllowAudioPlayback(false)
-	                              .CreatePhysicsScene(false)
-	                              .RequiresHitProxies(false)
-	                              .ShouldSimulatePhysics(false)
-	                              .SetTransactional(false));
+	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
+	WorldContext.SetCurrentWorld(World);
+
+	FURL URL;
+	World->InitializeActorsForPlay(URL);
 	World->BeginPlay();
 
 	FActorSpawnParameters SpawnParams;
@@ -70,8 +71,10 @@ bool FGasXBootstrapAddsPlayerCoreAttributesTest::RunTest(const FString& Paramete
 	Bootstrap->DestroyComponent();
 	ASC->DestroyComponent();
 	Owner->Destroy();
+
+	World->EndPlay(EEndPlayReason::Quit);
+	GEngine->DestroyWorldContext(World);
 	World->DestroyWorld(false);
-	World->RemoveFromRoot();
 
 	return true;
 }
